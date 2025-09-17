@@ -1,0 +1,36 @@
+# Envs e segredos
+.env
+.env.*
+*.env
+client_secret*.json
+gcloud_token.json
+service_account*.json
+credentials*.json
+ga4_token.json
+rd_token.json
+secrets/**
+
+# Ambientes
+.venv/
+venv/
+.python-version
+__pycache__/
+.pytest_cache/
+
+# IDE/Editor
+.idea/
+.vscode/
+.cursor/
+
+# Dados e artefatos locais
+data/raw/**
+data/api_cache/**
+data/warehouse/**
+logs/**
+*.parquet
+*.duckdb
+
+# Sistema
+.DS_Store
+Thumbs.db
+

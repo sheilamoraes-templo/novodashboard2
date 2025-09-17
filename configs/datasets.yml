@@ -1,0 +1,26 @@
+---
+- id: ga4_events_daily
+  source: GA4
+  entity: events
+  description: Eventos agregados por dia e nome do evento (GA4).
+  dimensions: [date, eventName]
+  metrics: [eventCount, activeUsers]
+  granularity: daily
+  freshness_ttl_minutes: 60
+  quality_checks:
+    not_null: [date, eventName]
+    unique: [date, eventName]
+
+- id: ga4_pages_daily
+  source: GA4
+  entity: pages
+  description: Métricas por página por dia (GA4), incluindo pageviews, sessões e usuários.
+  dimensions: [date, pagePath, pageTitle]
+  metrics: [screenPageViews, sessions, totalUsers]
+  granularity: daily
+  freshness_ttl_minutes: 60
+  quality_checks:
+    not_null: [date, pagePath]
+    unique: [date, pagePath]
+
+
