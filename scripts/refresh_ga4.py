@@ -16,6 +16,7 @@ if ROOT_DIR not in sys.path:
 from configs.settings import get_settings
 from integrations.ga4.client import GA4Client
 from services.ga4_refresh import refresh_events_last_n_days, refresh_pages_last_n_days
+from integrations.youtube.client import YouTubeClient
 
 
 def main() -> None:
@@ -77,6 +78,19 @@ def main() -> None:
         print(msg_p)
     except Exception as e:
         print(f"Falha ao materializar páginas: {e}")
+
+    # (YouTube) Placeholder de coleta simples (sem persistência ainda)
+    try:
+        yt = YouTubeClient.from_env()
+        # TODO: parametrizar channel_id via .env/config
+        channel_id = os.getenv("YT_CHANNEL_ID", "")
+        if channel_id:
+            dfyt = yt.fetch_video_analytics_daily(start_s, end_s, channel_id)
+            print(f"YouTube: {dfyt.height} linhas (analytics por vídeo)")
+        else:
+            print("YouTube: defina YT_CHANNEL_ID para coletar analytics.")
+    except Exception as e:
+        print(f"YouTube: coleta não realizada ({e})")
 
 
 if __name__ == "__main__":

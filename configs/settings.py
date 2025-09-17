@@ -29,6 +29,11 @@ class Settings:
 
     # Futuro
     youtube_api_key: str | None = os.getenv("YOUTUBE_API_KEY")
+    yt_oauth_client_secret: str | None = os.getenv("YT_OAUTH_CLIENT_SECRET")
+    yt_oauth_token_path: Path | None = (
+        Path(os.getenv("YT_OAUTH_TOKEN_PATH")).resolve() if os.getenv("YT_OAUTH_TOKEN_PATH") else None
+    )
+    yt_channel_id: str | None = os.getenv("YT_CHANNEL_ID")
     rd_client_id: str | None = os.getenv("RD_CLIENT_ID")
     rd_client_secret: str | None = os.getenv("RD_CLIENT_SECRET")
     rd_redirect_uri: str | None = os.getenv("RD_REDIRECT_URI")

@@ -27,6 +27,7 @@ from services.ga4_refresh import (
     refresh_events_last_n_days,
     refresh_pages_last_n_days,
 )
+from services.youtube_refresh import refresh_yt_video_daily_last_n_days
 
 
 st.set_page_config(page_title="CLASSPLAY Dashboard", layout="wide")
@@ -59,6 +60,21 @@ def main() -> None:
                 st.success(m)
         except Exception as e:
             st.error(f"Falha ao atualizar GA4: {e}")
+
+    st.subheader("YouTube")
+    colyt1, colyt2 = st.columns(2)
+    with colyt1:
+        yt_days = st.number_input("Dias (YT)", min_value=7, max_value=60, value=30)
+    with colyt2:
+        if st.button("Atualizar YouTube (últimos N dias)"):
+            try:
+                import os as _os
+
+                channel_id = _os.getenv("YT_CHANNEL_ID", "")
+                msg = refresh_yt_video_daily_last_n_days(int(yt_days), channel_id)
+                st.success(msg)
+            except Exception as e:
+                st.error(f"Falha ao atualizar YouTube: {e}")
     kpis = get_kpis(start_s, end_s)
     k1, k2, k3 = st.columns(3)
     k1.metric("Usuários", int(kpis.get("users", 0)))

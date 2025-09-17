@@ -44,6 +44,10 @@ def get_health() -> Dict[str, str]:
         latest_ga4_events = con.execute("SELECT MAX(date) FROM fact_ga4_events_daily").fetchone()
     except Exception:
         latest_ga4_events = (None,)
+    try:
+        latest_yt = con.execute("SELECT MAX(date) FROM fact_yt_video_daily").fetchone()
+    except Exception:
+        latest_yt = (None,)
     con.close()
     return {
         "rows_fact_sessions": str(res_sessions[0] if res_sessions else 0),
@@ -52,6 +56,7 @@ def get_health() -> Dict[str, str]:
         "latest_date_fact_sessions": str(latest_sessions[0]) if latest_sessions else "None",
         "latest_date_ga4_pages_daily": str(latest_ga4_pages[0]) if latest_ga4_pages else "None",
         "latest_date_ga4_events_daily": str(latest_ga4_events[0]) if latest_ga4_events else "None",
+        "latest_date_fact_yt_video_daily": str(latest_yt[0]) if latest_yt else "None",
     }
 
 
