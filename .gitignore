@@ -8,6 +8,7 @@ service_account*.json
 credentials*.json
 ga4_token.json
 rd_token.json
+yt_token.json
 secrets/**
 
 # Ambientes
