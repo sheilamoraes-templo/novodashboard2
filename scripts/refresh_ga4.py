@@ -79,16 +79,12 @@ def main() -> None:
     except Exception as e:
         print(f"Falha ao materializar páginas: {e}")
 
-    # (YouTube) Placeholder de coleta simples (sem persistência ainda)
+    # YouTube: coleta canal diário + top vídeos do período (persistência)
     try:
-        yt = YouTubeClient.from_env()
-        # TODO: parametrizar channel_id via .env/config
-        channel_id = os.getenv("YT_CHANNEL_ID", "")
-        if channel_id:
-            dfyt = yt.fetch_video_analytics_daily(start_s, end_s, channel_id)
-            print(f"YouTube: {dfyt.height} linhas (analytics por vídeo)")
-        else:
-            print("YouTube: defina YT_CHANNEL_ID para coletar analytics.")
+        from services.youtube_refresh import refresh_yt_channel_and_videos
+
+        msg_yt = refresh_yt_channel_and_videos(30)
+        print(msg_yt)
     except Exception as e:
         print(f"YouTube: coleta não realizada ({e})")
 

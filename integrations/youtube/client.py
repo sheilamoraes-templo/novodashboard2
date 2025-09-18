@@ -33,17 +33,35 @@ class YouTubeClient:
         # Sem OAuth, não é possível usar a Analytics API. O fallback por API key é apenas para Data API.
         raise RuntimeError("YouTube Analytics requer OAuth (defina YT_OAUTH_TOKEN_PATH)")
 
-    def fetch_video_analytics_daily(self, start_date: str, end_date: str, channel_id: Optional[str]) -> pl.DataFrame:
+    def fetch_channel_daily(self, start_date: str, end_date: str) -> pl.DataFrame:
         svc = self._yt_service()
-        # Use ids=MINE com OAuth para evitar 403 quando o usuário autenticado não for exatamente o owner do channel_id fornecido
         ids_value = "channel==MINE"
         query = svc.reports().query(
             ids=ids_value,
             startDate=start_date,
             endDate=end_date,
-            dimensions="day,video",
+            dimensions="day",
             metrics="views,estimatedMinutesWatched,averageViewDuration",
             sort="day",
+        )
+        resp = query.execute()
+        rows: List[List[Any]] = resp.get("rows", [])
+        cols: List[str] = [h.get("name") for h in resp.get("columnHeaders", [])]
+        if not rows:
+            return pl.DataFrame()
+        return pl.DataFrame(rows, schema=cols)
+
+    def fetch_top_videos_period(self, start_date: str, end_date: str, max_results: int = 50) -> pl.DataFrame:
+        svc = self._yt_service()
+        ids_value = "channel==MINE"
+        query = svc.reports().query(
+            ids=ids_value,
+            startDate=start_date,
+            endDate=end_date,
+            dimensions="video",
+            metrics="views,estimatedMinutesWatched,averageViewDuration",
+            sort="-views",
+            maxResults=max_results,
         )
         resp = query.execute()
         rows: List[List[Any]] = resp.get("rows", [])
