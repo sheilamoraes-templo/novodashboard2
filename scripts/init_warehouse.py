@@ -57,6 +57,20 @@ def main() -> None:
     con = duckdb.connect(str(db_path))
     for stmt in DDL:
         con.execute(stmt)
+    # Popular dim_date com calendário diário desde 2023-01-01 até hoje
+    con.execute(
+        """
+        CREATE OR REPLACE TABLE dim_date AS
+        SELECT
+          d AS date,
+          CAST(strftime(d, '%Y') AS INTEGER) AS year,
+          CAST(strftime(d, '%m') AS INTEGER) AS month,
+          CAST(strftime(d, '%W') AS INTEGER) AS week
+        FROM (
+          SELECT * FROM generate_series(CAST('2023-01-01' AS DATE), CURRENT_DATE, INTERVAL 1 DAY)
+        ) t(d);
+        """
+    )
     con.close()
     print(f"Warehouse inicializado em: {db_path}")
 

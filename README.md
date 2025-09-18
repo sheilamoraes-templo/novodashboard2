@@ -108,3 +108,120 @@ streamlit run app/dashboard.py --server.port 8050
 - DuckDB: https://duckdb.org/
 - Polars: https://pola.rs/
 - Streamlit: https://docs.streamlit.io/
+
+## Plano de Ação Executável (MVP → Evolução)
+
+Objetivo: evoluir o `novodashboard2` com uma camada de dados sólida e entregáveis incrementais, testáveis e executáveis por partes, mantendo a compatibilidade com a estrutura atual.
+
+### Decisões de escopo
+- Manter a estrutura existente (app, services, integrations, scripts, configs, data/warehouse).
+- Evoluir por incrementos pequenos, cada um com DoD (Definition of Done) e comandos de execução.
+
+### Entregáveis do MVP desta rodada
+- Tabelas novas: `fact_ga4_sessions_by_utm_daily`, `fact_rd_email_campaign`, `dim_time`, `dim_content`, `bridge_ga4_content`, `bridge_yt_content`, `map_utm_campaign`, `fact_engagement_daily`, `fact_comms_impact_daily`.
+- Helpers: comparativos WoW/MoM/MTD, normalização de UTM, expansão de freshness/qualidade.
+- UI: páginas Executivo, Aquisição & CRM, Conteúdo & Retenção, Operação & Saúde (cards mínimos).
+
+### 1) GA4 por UTM (impacto de campanhas)
+- Materializar sessões/usuários por UTM:
+  - Dimensions: `date, sessionSource, sessionMedium, sessionCampaignName`.
+  - Metrics: `sessions, totalUsers`.
+  - Tabela: `fact_ga4_sessions_by_utm_daily(date, source, medium, campaign, sessions, users)`.
+- DoD:
+  - Tabela criada e preenchida para últimos 30 dias.
+  - `get_health()` reporta `latest_date_fact_ga4_sessions_by_utm_daily`.
+
+### 2) RD — campanhas de e‑mail
+- Coletar envios e métricas (sends, opens, clicks) e materializar em `fact_rd_email_campaign(date, campaignId, sends, opens, clicks)`.
+- DoD:
+  - Tabela criada e populada para janela alvo.
+  - `get_health()` reporta `latest_date_fact_rd_email_campaign`.
+
+### 3) Normalização UTM e mapeamento de campanha
+- CSV: `catalog/map_utm_campaign.csv` com `utm_source,utm_medium,utm_campaign,campaignId,campaign_name`.
+- Carregar para DuckDB em tabela `map_utm_campaign` e aplicar normalização (lower/strip).
+- DoD: tabela com ao menos 1 mapping carregada e utilizada em joins.
+
+### 4) Dimensões e bridges
+- `dim_time`: calendário diário com ano/mês/semana e flags úteis (ex.: `is_today`).
+- `dim_content` e bridges:
+  - CSV `catalog/content_catalog.csv`: `content_id,title,channel,category,author,duration_sec,pagePath,videoId`.
+  - Tabelas: `dim_content`, `bridge_ga4_content(pagePath,content_id)`, `bridge_yt_content(videoId,content_id)`.
+- DoD: tabelas criadas e preenchidas a partir dos CSVs.
+
+### 5) Fatos derivadas
+- `fact_engagement_daily` (por data): une GA4 (`fact_sessions`) e YT (`fact_yt_channel_daily`).
+- `fact_comms_impact_daily`: une `fact_rd_email_campaign` e `fact_ga4_sessions_by_utm_daily` via `map_utm_campaign` para janelas D-1, D0, D0–D+2.
+- DoD: ambas as tabelas materializadas e consultáveis no DuckDB.
+
+### 6) Helpers de comparativos e métricas
+- Funções (services):
+  - Semana corrente vs. anterior (seg–dom, exclui parciais).
+  - MTD vs. mês anterior (até o mesmo dia).
+  - 7d vs. 28d.
+- Métricas derivadas:
+  - Retenção YT: `estimatedMinutesWatched / views`.
+  - Engajamento GA4: `screenPageViews / sessions` (e `engagedSessions/sessions` quando disponível).
+- DoD: helpers retornam dicionários coerentes e são usados na UI/relatórios.
+
+### 7) UI (Streamlit) — páginas e cards
+- Executivo: KPIs (Usuários, Sessões, Minutos, Views, Leads), Δ WoW/MTD, tendência combinada (28d), Top Conteúdos (7d).
+- Aquisição & CRM: UTM → Sessões/Leads; Funil RD (se disponível).
+- Conteúdo & Retenção: retenção por vídeo (min/view), Pareto páginas.
+- Operação & Saúde: freshness expandido e checks.
+- DoD: páginas renderizam sem erro, com mensagens de fallback “sem dados”.
+
+### 8) Qualidade e Freshness
+- Checks simples (DuckDB): not null/unique e volumetria (queda >40% DoD).
+- `get_health()` expandido com `latest_date_*` das novas tabelas.
+- DoD: `st.json(get_health())` mostra novos campos.
+
+### 9) Scripts utilitários (a adicionar em `scripts/`)
+- `refresh_ga4_utm.py` → chama `refresh_sessions_by_utm_last_n_days`.
+- `refresh_rd_campaigns.py` → chama `refresh_rd_email_campaign_last_n_days`.
+- `import_content_catalog.py` → importa CSV para `dim_content` e bridges.
+- DoD: scripts não interativos, aceitam `--days` e respeitam `.env`.
+
+### 10) Configurações e documentação
+- Atualizar `configs/datasets.yml` com novos datasets e checks mínimos.
+- Atualizar este README com o fluxo de execução e comandos.
+
+### Ordem sugerida de implementação
+1. `fact_ga4_sessions_by_utm_daily`
+2. `fact_rd_email_campaign`
+3. `dim_time`
+4. `map_utm_campaign`
+5. `fact_engagement_daily`
+6. `fact_comms_impact_daily`
+7. Helpers comparativos
+8. UI (páginas e cards)
+9. Qualidade e `get_health()`
+10. README e `datasets.yml`
+
+### Comandos de execução (exemplos)
+```
+# Ambiente
+pip install -r requirements.txt
+
+# Warehouse inicial
+python scripts/init_warehouse.py
+
+# GA4
+python scripts/refresh_ga4.py
+# (após criar) UTM
+python scripts/refresh_ga4_utm.py --days 30
+
+# RD (após criar)
+python scripts/refresh_rd_campaigns.py --days 30
+
+# Conteúdo (após criar CSV)
+python scripts/import_content_catalog.py --path catalog/content_catalog.csv
+
+# Dashboard
+streamlit run app/dashboard.py --server.port 8050
+```
+
+Notas:
+- Para YouTube Analytics é necessário OAuth (`YT_OAUTH_TOKEN_PATH`).
+- Para GA4, use Service Account (`GOOGLE_APPLICATION_CREDENTIALS`) ou OAuth (`GA4_OAUTH_TOKEN_PATH`).
+- Para RD Station, preencha `RD_CLIENT_ID`, `RD_CLIENT_SECRET`, `RD_REDIRECT_URI` e gere `rd_token.json` via `scripts/rd_oauth_login.py`.

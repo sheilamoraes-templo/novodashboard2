@@ -24,3 +24,25 @@
     unique: [date, pagePath]
 
 
+- id: ga4_sessions_by_utm_daily
+  source: GA4
+  entity: sessions_utm
+  description: Sessões/usuários por UTM (source/medium/campaign) por dia.
+  dimensions: [date, source, medium, campaign]
+  metrics: [sessions, users]
+  granularity: daily
+  freshness_ttl_minutes: 60
+  quality_checks:
+    not_null: [date]
+
+- id: rd_email_campaign
+  source: RD
+  entity: email_campaign
+  description: Métricas de e-mail por campanha e data de envio.
+  dimensions: [date, campaignId]
+  metrics: [sends, opens, clicks]
+  granularity: daily
+  freshness_ttl_minutes: 120
+  quality_checks:
+    not_null: [date, campaignId]
+

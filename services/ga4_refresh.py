@@ -66,6 +66,85 @@ def refresh_sessions_last_n_days(days: int = 30) -> str:
     return f"Atualizado fact_sessions para {start_s}..{end_s}"
 
 
+def refresh_sessions_by_utm_last_n_days(days: int = 30) -> str:
+    """Materializa sessões/usuários por UTM do GA4 em fact_ga4_sessions_by_utm_daily.
+
+    Colunas: date, source, medium, campaign, sessions, users
+    """
+    s = get_settings()
+    client = GA4Client.from_env()
+
+    end = date.today()
+    start = end - timedelta(days=days)
+    start_s, end_s = start.isoformat(), end.isoformat()
+
+    parquet_path = client.run_report_cached(
+        dimensions=["date", "sessionSource", "sessionMedium", "sessionCampaignName"],
+        metrics=["sessions", "totalUsers"],
+        start_date=start_s,
+        end_date=end_s,
+        force=True,
+    )
+    df = pl.read_parquet(parquet_path)
+    if df.is_empty():
+        return "Nenhum dado UTM retornado do GA4."
+
+    df = df.rename({
+        "date": "date",
+        "sessionSource": "source",
+        "sessionMedium": "medium",
+        "sessionCampaignName": "campaign",
+        "sessions": "sessions",
+        "totalUsers": "users",
+    })
+    df = df.with_columns([
+        pl.col("sessions").cast(pl.Int64, strict=False),
+        pl.col("users").cast(pl.Int64, strict=False),
+    ])
+    if "date" in df.columns:
+        df = df.with_columns(
+            pl.col("date")
+            .cast(pl.Utf8)
+            .str.strptime(pl.Date, format="%Y%m%d", strict=False)
+            .dt.strftime("%Y-%m-%d")
+        )
+
+    db_path = s.data_dir / "warehouse" / "warehouse.duckdb"
+    con = duckdb.connect(str(db_path))
+    con.execute(
+        """
+        CREATE TABLE IF NOT EXISTS fact_ga4_sessions_by_utm_daily (
+            date DATE,
+            source TEXT,
+            medium TEXT,
+            campaign TEXT,
+            sessions BIGINT,
+            users BIGINT
+        );
+        """
+    )
+    tmp = f"_tmp_utm_{uuid.uuid4().hex}"
+    con.execute("BEGIN TRANSACTION;")
+    try:
+        con.execute("DELETE FROM fact_ga4_sessions_by_utm_daily WHERE date BETWEEN ? AND ?;", [start_s, end_s])
+        con.register(tmp, df.to_pandas())
+        con.execute(
+            f"""
+            INSERT INTO fact_ga4_sessions_by_utm_daily
+            SELECT CAST(date AS DATE), CAST(source AS TEXT), CAST(medium AS TEXT), CAST(campaign AS TEXT),
+                   CAST(sessions AS BIGINT), CAST(users AS BIGINT)
+            FROM {tmp};
+            """
+        )
+        con.execute("COMMIT;")
+    except Exception:
+        con.execute("ROLLBACK;")
+        con.close()
+        raise
+    con.close()
+    return f"Atualizado fact_ga4_sessions_by_utm_daily para {start_s}..{end_s}"
+
+
 def refresh_events_last_n_days(days: int = 30) -> str:
     """Materializa eventos diários do GA4 em fact_ga4_events_daily.
 

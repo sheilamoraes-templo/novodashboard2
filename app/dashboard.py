@@ -18,6 +18,16 @@ from services.data_service import (
     get_top_countries,
     get_top_days,
     get_health,
+    get_yt_channel_daily,
+    get_yt_top_videos,
+    get_engagement_kpis,
+    get_engagement_series,
+    get_utm_aggregate,
+    get_comms_sessions_by_campaign,
+    get_wow_comparatives,
+    get_mtd_vs_prev_month,
+    get_yt_retention_by_video,
+    get_pages_pareto,
 )
 import plotly.express as px
 from services.report_service import build_weekly_report
@@ -72,11 +82,47 @@ def main() -> None:
                 st.success(msg)
             except Exception as e:
                 st.error(f"Falha ao atualizar YouTube: {e}")
+
+    # Cards YouTube
+    st.header("YouTube — Evolução diária (views)")
+    try:
+        yt_daily = get_yt_channel_daily(start_s, end_s)
+        if yt_daily:
+            figy = px.line(yt_daily, x="date", y="views")
+            st.plotly_chart(figy, use_container_width=True)
+        else:
+            st.info("Sem dados diários do YouTube no período.")
+    except Exception as e:
+        st.warning(f"Falha ao carregar evolução YouTube: {e}")
+
+    st.header("YouTube — Top vídeos (views)")
+    try:
+        yt_top = get_yt_top_videos(start_s, end_s, 20)
+        if yt_top:
+            figt = px.bar(yt_top, x="views", y="videoId", orientation="h")
+            st.plotly_chart(figt, use_container_width=True)
+        else:
+            st.info("Sem dados de vídeos do YouTube no período.")
+    except Exception as e:
+        st.warning(f"Falha ao carregar Top vídeos YouTube: {e}")
     kpis = get_kpis(start_s, end_s)
-    k1, k2, k3 = st.columns(3)
+    eng = get_engagement_kpis(start_s, end_s)
+    k1, k2, k3, k4, k5 = st.columns(5)
     k1.metric("Usuários", int(kpis.get("users", 0)))
     k2.metric("Sessões", int(kpis.get("sessions", 0)))
     k3.metric("Pageviews", int(kpis.get("pageviews", 0)))
+    k4.metric("Views (YT)", int(eng.get("views", 0)))
+    k5.metric("Minutos (YT)", int(eng.get("minutes", 0)))
+    # Comparativos WoW e MTD
+    try:
+        wow = get_wow_comparatives(end_s)
+        mtd = get_mtd_vs_prev_month(end_s)
+        st.caption(
+            f"WoW – Sessões: {wow['sessions']['delta_pct']}% | Minutos: {wow['minutes']['delta_pct']}%  •  "
+            f"MTD vs M-1 – Sessões: {mtd['sessions']['delta_pct']}% | Minutos: {mtd['minutes']['delta_pct']}%"
+        )
+    except Exception as e:
+        st.caption(f"Comparativos indisponíveis: {e}")
 
     st.header("Top Páginas (Top 10)")
     try:
@@ -132,6 +178,58 @@ def main() -> None:
     except Exception as e:
         st.warning(f"Falha ao carregar Top Dias: {e}")
 
+    st.header("Conteúdo & Retenção")
+    colc1, colc2 = st.columns(2)
+    with colc1:
+        try:
+            ret = get_yt_retention_by_video(start_s, end_s, 20)
+            if ret:
+                import pandas as pd
+                dfr = pd.DataFrame(ret)
+                dfr_display = dfr.copy()
+                dfr_display["min_per_view"] = dfr_display["min_per_view"].round(2)
+                st.dataframe(dfr_display, use_container_width=True, hide_index=True)
+            else:
+                st.info("Sem dados de retenção YT no período.")
+        except Exception as e:
+            st.warning(f"Falha na retenção YT: {e}")
+    with colc2:
+        try:
+            pareto = get_pages_pareto(start_s, end_s, 20)
+            if pareto:
+                import pandas as pd
+                dfp = pd.DataFrame(pareto)
+                st.bar_chart(dfp.set_index("page_title")["pageviews"], use_container_width=True)
+            else:
+                st.info("Sem dados de páginas para Pareto no período.")
+        except Exception as e:
+            st.warning(f"Falha no Pareto de páginas: {e}")
+
+    # Aquisição & CRM (MVP)
+    st.header("Aquisição & CRM — UTM e Campanhas")
+    try:
+        utm = get_utm_aggregate(start_s, end_s, 20)
+        if utm:
+            import pandas as pd
+            dfu = pd.DataFrame(utm)
+            st.bar_chart(dfu.set_index("campaign")["sessions"], use_container_width=True)
+            st.dataframe(dfu, use_container_width=True, hide_index=True)
+        else:
+            st.info("Sem dados UTM no período.")
+    except Exception as e:
+        st.warning(f"Falha ao carregar UTM: {e}")
+
+    try:
+        comms = get_comms_sessions_by_campaign(start_s, end_s, 10)
+        if comms:
+            import pandas as pd
+            dfc = pd.DataFrame(comms)
+            st.bar_chart(dfc.set_index("campaignId")["sessions"], use_container_width=True)
+        else:
+            st.info("Sem dados de impacto de campanhas no período.")
+    except Exception as e:
+        st.warning(f"Falha ao carregar impacto de campanhas: {e}")
+
     st.header("Análise de Classes (/classes)")
     st.caption("Em breve: filtro e ranking específico de páginas de classes.")
 
@@ -155,6 +253,19 @@ def main() -> None:
                 st.error(f"Falha ao enviar Slack: {resp}")
         except Exception as e:
             st.error(f"Erro no envio Slack: {e}")
+
+    st.header("Tendência combinada (Sessões × Minutos, últimos dias)")
+    try:
+        eng_series = get_engagement_series(start_s, end_s)
+        if eng_series:
+            import pandas as pd
+            df = pd.DataFrame(eng_series)
+            fig_combo = px.line(df, x="date", y=["sessions", "minutes"], labels={"value": "valor", "variable": "métrica"})
+            st.plotly_chart(fig_combo, use_container_width=True)
+        else:
+            st.info("Sem dados de engajamento no período.")
+    except Exception as e:
+        st.warning(f"Falha ao carregar tendência combinada: {e}")
 
 
 if __name__ == "__main__":
