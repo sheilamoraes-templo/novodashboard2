@@ -257,8 +257,30 @@ def main() -> None:
             f"Freshness — GA4(páginas): {qs['freshness'].get('ga4_pages_daily')} | GA4(eventos): {qs['freshness'].get('ga4_events_daily')} | "
             f"GA4(UTM): {qs['freshness'].get('ga4_utm_daily')} | YT: {qs['freshness'].get('yt_video_daily')} | RD: {qs['freshness'].get('rd_email_campaign')}"
         )
-        if qs['volumetry']['ses_dod_pct'] < -40.0 or qs['volumetry']['min_dod_pct'] < -40.0:
+        has_drop = qs['volumetry']['ses_dod_pct'] < -40.0 or qs['volumetry']['min_dod_pct'] < -40.0
+        if has_drop:
             st.warning("Queda >40% dia contra dia detectada em Sessões/Minutos (verificar integrações ou sazonalidade).")
+        # Botão de alerta Slack
+        if st.button("Enviar alerta Slack (qualidade)"):
+            try:
+                issues = []
+                if has_drop:
+                    issues.append(
+                        f"Queda DoD: sessões {qs['volumetry']['ses_dod_pct']:.1f}% | minutos {qs['volumetry']['min_dod_pct']:.1f}%"
+                    )
+                freshness_txt = \
+                    f"Freshness => GA4 páginas: {qs['freshness'].get('ga4_pages_daily')}; " \
+                    f"GA4 eventos: {qs['freshness'].get('ga4_events_daily')}; GA4 UTM: {qs['freshness'].get('ga4_utm_daily')}; " \
+                    f"YT: {qs['freshness'].get('yt_video_daily')}; RD: {qs['freshness'].get('rd_email_campaign')}"
+                msg = "\n".join(["Alertas de Qualidade — CLASSPLAY", freshness_txt] + (issues or ["Sem violações críticas detectadas."]))
+                sc = SlackClient.from_env()
+                resp = sc.send_text(msg)
+                if resp.get("status_code") == 200:
+                    st.success("Alerta enviado ao Slack")
+                else:
+                    st.error(f"Falha ao enviar Slack: {resp}")
+            except Exception as e:
+                st.error(f"Erro no envio Slack: {e}")
     except Exception:
         pass
     try:
