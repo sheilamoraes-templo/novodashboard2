@@ -15,11 +15,12 @@ try:
 except Exception:
     pass
 
-from services.comms_impact_refresh import materialize_comms_impact_daily
+from services.comms_impact_refresh import materialize_comms_impact_daily, materialize_comms_impact_summary
 
 
 def main() -> None:
     print(materialize_comms_impact_daily())
+    print(materialize_comms_impact_summary())
 
 
 if __name__ == "__main__":

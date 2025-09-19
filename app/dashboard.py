@@ -26,8 +26,12 @@ from services.data_service import (
     get_comms_sessions_by_campaign,
     get_wow_comparatives,
     get_mtd_vs_prev_month,
+    get_7_vs_28,
     get_yt_retention_by_video,
     get_pages_pareto,
+    get_rd_kpis,
+    get_comms_summary,
+    get_quality_signals,
 )
 import plotly.express as px
 from services.report_service import build_weekly_report
@@ -113,13 +117,15 @@ def main() -> None:
     k3.metric("Pageviews", int(kpis.get("pageviews", 0)))
     k4.metric("Views (YT)", int(eng.get("views", 0)))
     k5.metric("Minutos (YT)", int(eng.get("minutes", 0)))
-    # Comparativos WoW e MTD
+    # Comparativos WoW, MTD e 7v28
     try:
         wow = get_wow_comparatives(end_s)
         mtd = get_mtd_vs_prev_month(end_s)
+        v7v28 = get_7_vs_28(end_s)
         st.caption(
             f"WoW – Sessões: {wow['sessions']['delta_pct']}% | Minutos: {wow['minutes']['delta_pct']}%  •  "
-            f"MTD vs M-1 – Sessões: {mtd['sessions']['delta_pct']}% | Minutos: {mtd['minutes']['delta_pct']}%"
+            f"MTD vs M-1 – Sessões: {mtd['sessions']['delta_pct']}% | Minutos: {mtd['minutes']['delta_pct']}%  •  "
+            f"7v28 – Sessões: {v7v28['sessions']['delta_pct']}% | Minutos: {v7v28['minutes']['delta_pct']}%"
         )
     except Exception as e:
         st.caption(f"Comparativos indisponíveis: {e}")
@@ -220,13 +226,22 @@ def main() -> None:
         st.warning(f"Falha ao carregar UTM: {e}")
 
     try:
-        comms = get_comms_sessions_by_campaign(start_s, end_s, 10)
-        if comms:
+        # KPIs RD (CTR/leads)
+        rd = get_rd_kpis(start_s, end_s)
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Sends", int(rd.get("sends", 0)))
+        c2.metric("Opens", int(rd.get("opens", 0)))
+        c3.metric("Clicks", int(rd.get("clicks", 0)))
+        c4.metric("CTR %", rd.get("ctr_pct", 0.0))
+
+        # Resumo D-1/D0/D0–D+2 por campanha
+        summary = get_comms_summary(10)
+        if summary:
             import pandas as pd
-            dfc = pd.DataFrame(comms)
-            st.bar_chart(dfc.set_index("campaignId")["sessions"], use_container_width=True)
+            dfs = pd.DataFrame(summary)
+            st.dataframe(dfs, use_container_width=True, hide_index=True)
         else:
-            st.info("Sem dados de impacto de campanhas no período.")
+            st.info("Sem resumo de impacto de campanhas (ver mapeamento UTM e dados RD).")
     except Exception as e:
         st.warning(f"Falha ao carregar impacto de campanhas: {e}")
 
@@ -234,7 +249,23 @@ def main() -> None:
     st.caption("Em breve: filtro e ranking específico de páginas de classes.")
 
     st.header("Informações dos Dados")
-    st.json(get_health())
+    h = get_health()
+    st.json(h)
+    try:
+        qs = get_quality_signals()
+        st.caption(
+            f"Freshness — GA4(páginas): {qs['freshness'].get('ga4_pages_daily')} | GA4(eventos): {qs['freshness'].get('ga4_events_daily')} | "
+            f"GA4(UTM): {qs['freshness'].get('ga4_utm_daily')} | YT: {qs['freshness'].get('yt_video_daily')} | RD: {qs['freshness'].get('rd_email_campaign')}"
+        )
+        if qs['volumetry']['ses_dod_pct'] < -40.0 or qs['volumetry']['min_dod_pct'] < -40.0:
+            st.warning("Queda >40% dia contra dia detectada em Sessões/Minutos (verificar integrações ou sazonalidade).")
+    except Exception:
+        pass
+    try:
+        if end == date.today():
+            st.info("Parcial hoje: os dados de hoje podem estar incompletos.")
+    except Exception:
+        pass
 
     st.header("Envio de Relatório (Slack)")
     top_n = st.number_input("Top N páginas", min_value=5, max_value=20, value=10)

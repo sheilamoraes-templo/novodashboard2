@@ -453,6 +453,57 @@ def get_comms_sessions_by_campaign(start_date: str, end_date: str, limit: int = 
         con.close()
 
 
+def get_rd_kpis(start_date: str, end_date: str) -> Dict[str, float]:
+    """KPIs de campanhas RD: sends, opens, clicks (janela)."""
+    con = _ensure_duckdb()
+    try:
+        row = con.execute(
+            """
+            SELECT COALESCE(SUM(sends),0), COALESCE(SUM(opens),0), COALESCE(SUM(clicks),0)
+            FROM fact_rd_email_campaign
+            WHERE date BETWEEN CAST(? AS DATE) AND CAST(? AS DATE)
+            """,
+            [start_date, end_date],
+        ).fetchone() or (0, 0, 0)
+        sends, opens, clicks = row
+        ctr = (float(clicks or 0) * 100.0 / float(sends)) if sends else 0.0
+        return {"sends": float(sends or 0), "opens": float(opens or 0), "clicks": float(clicks or 0), "ctr_pct": round(ctr, 2)}
+    finally:
+        con.close()
+
+
+def get_comms_summary(limit: int = 10) -> List[Dict[str, str]]:
+    """Resumo por campanha com janelas D-1, D0 e D0–D+2 e uplift."""
+    con = _ensure_duckdb()
+    try:
+        rows = con.execute(
+            """
+            SELECT campaignId, send_date, ses_d_1, ses_d0, ses_d0_d2, uplift_abs, uplift_pct, sends, opens, clicks
+            FROM fact_comms_impact_summary
+            ORDER BY send_date DESC
+            LIMIT ?
+            """,
+            [limit],
+        ).fetchall()
+        return [
+            {
+                "campaignId": r[0],
+                "send_date": str(r[1]),
+                "ses_d_1": int(r[2] or 0),
+                "ses_d0": int(r[3] or 0),
+                "ses_d0_d2": int(r[4] or 0),
+                "uplift_abs": int(r[5] or 0),
+                "uplift_pct": float(r[6] or 0.0),
+                "sends": int(r[7] or 0),
+                "opens": int(r[8] or 0),
+                "clicks": int(r[9] or 0),
+            }
+            for r in rows
+        ]
+    finally:
+        con.close()
+
+
 def _parse_date(s: str) -> date:
     y, m, d = s.split("-")
     return date(int(y), int(m), int(d))
@@ -486,6 +537,48 @@ def get_wow_comparatives(end_date: str) -> Dict[str, Dict[str, float]]:
     }
 
 
+def get_quality_signals() -> Dict[str, Dict[str, float]]:
+    """Sinais de qualidade: freshness e volumetria (queda >40% DoD) básicos.
+
+    Retorna dict com chaves 'freshness' e 'volumetry'.
+    """
+    con = _ensure_duckdb()
+    try:
+        # Freshness: últimas datas vistas por fato principal
+        fr = {
+            "fact_sessions": (con.execute("SELECT MAX(date) FROM fact_sessions").fetchone() or (None,))[0],
+            "ga4_pages_daily": (con.execute("SELECT MAX(date) FROM fact_ga4_pages_daily").fetchone() or (None,))[0],
+            "ga4_events_daily": (con.execute("SELECT MAX(date) FROM fact_ga4_events_daily").fetchone() or (None,))[0],
+            "yt_video_daily": (con.execute("SELECT MAX(date) FROM fact_yt_video_daily").fetchone() or (None,))[0],
+            "ga4_utm_daily": (con.execute("SELECT MAX(date) FROM fact_ga4_sessions_by_utm_daily").fetchone() or (None,))[0],
+            "rd_email_campaign": (con.execute("SELECT MAX(date) FROM fact_rd_email_campaign").fetchone() or (None,))[0],
+        }
+        # Volumetria: DoD de sessões e minutos em fact_engagement_daily
+        rows = con.execute(
+            """
+            WITH d AS (
+              SELECT date,
+                     COALESCE(sessions,0) AS sessions,
+                     COALESCE(estimatedMinutesWatched,0) AS minutes,
+                     LAG(COALESCE(sessions,0)) OVER (ORDER BY date) AS ses_prev,
+                     LAG(COALESCE(estimatedMinutesWatched,0)) OVER (ORDER BY date) AS min_prev
+              FROM fact_engagement_daily
+              ORDER BY date
+            )
+            SELECT date,
+                   CASE WHEN ses_prev IS NULL OR ses_prev = 0 THEN 0 ELSE (sessions - ses_prev) * 100.0 / ses_prev END AS ses_dod_pct,
+                   CASE WHEN min_prev IS NULL OR min_prev = 0 THEN 0 ELSE (minutes - min_prev) * 100.0 / min_prev END AS min_dod_pct
+            FROM d
+            ORDER BY date DESC
+            LIMIT 1
+            """
+        ).fetchone() or (None, 0.0, 0.0)
+        vol = {"date": str(rows[0]) if rows[0] else None, "ses_dod_pct": float(rows[1] or 0.0), "min_dod_pct": float(rows[2] or 0.0)}
+        return {"freshness": {k: str(v) for k, v in fr.items()}, "volumetry": vol}
+    finally:
+        con.close()
+
+
 def get_mtd_vs_prev_month(end_date: str) -> Dict[str, Dict[str, float]]:
     """Compara MTD vs. mês anterior até o mesmo dia (sessions e minutes)."""
     d_end = _parse_date(end_date)
@@ -514,4 +607,35 @@ def get_mtd_vs_prev_month(end_date: str) -> Dict[str, Dict[str, float]]:
     return {
         "sessions": {"current": cur_ses, "previous": prv_ses, "delta_abs": cur_ses - prv_ses, "delta_pct": round(_pct(cur_ses, prv_ses), 1)},
         "minutes": {"current": cur_min, "previous": prv_min, "delta_abs": cur_min - prv_min, "delta_pct": round(_pct(cur_min, prv_min), 1)},
+    }
+
+
+def get_7_vs_28(end_date: str) -> Dict[str, Dict[str, float]]:
+    """Compara últimos 7 dias vs. referência de 28 dias (normalizada para 7d).
+
+    Referência = (soma dos últimos 28 dias) * (7/28). Retorna delta em % e abs.
+    """
+    d_end = _parse_date(end_date)
+    cur_start = d_end - timedelta(days=6)
+    prev_start = d_end - timedelta(days=27)
+    con = _ensure_duckdb()
+    try:
+        cur = con.execute(
+            "SELECT COALESCE(SUM(sessions),0), COALESCE(SUM(estimatedMinutesWatched),0) FROM fact_engagement_daily WHERE date BETWEEN ? AND ?;",
+            [cur_start.isoformat(), d_end.isoformat()],
+        ).fetchone() or (0, 0)
+        last28 = con.execute(
+            "SELECT COALESCE(SUM(sessions),0), COALESCE(SUM(estimatedMinutesWatched),0) FROM fact_engagement_daily WHERE date BETWEEN ? AND ?;",
+            [prev_start.isoformat(), d_end.isoformat()],
+        ).fetchone() or (0, 0)
+    finally:
+        con.close()
+    cur_ses, cur_min = float(cur[0] or 0), float(cur[1] or 0)
+    ref_ses = float(last28[0] or 0) * (7.0 / 28.0)
+    ref_min = float(last28[1] or 0) * (7.0 / 28.0)
+    def _pct(a: float, b: float) -> float:
+        return ((a - b) / b * 100.0) if b else (0.0 if a == 0 else 100.0)
+    return {
+        "sessions": {"current": cur_ses, "reference": ref_ses, "delta_abs": cur_ses - ref_ses, "delta_pct": round(_pct(cur_ses, ref_ses), 1)},
+        "minutes": {"current": cur_min, "reference": ref_min, "delta_abs": cur_min - ref_min, "delta_pct": round(_pct(cur_min, ref_min), 1)},
     }
