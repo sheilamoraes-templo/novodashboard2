@@ -1,0 +1,48 @@
+---
+- id: ga4_events_daily
+  source: GA4
+  entity: events
+  description: Eventos agregados por dia e nome do evento (GA4).
+  dimensions: [date, eventName]
+  metrics: [eventCount, activeUsers]
+  granularity: daily
+  freshness_ttl_minutes: 60
+  quality_checks:
+    not_null: [date, eventName]
+    unique: [date, eventName]
+
+- id: ga4_pages_daily
+  source: GA4
+  entity: pages
+  description: Métricas por página por dia (GA4), incluindo pageviews, sessões e usuários.
+  dimensions: [date, pagePath, pageTitle]
+  metrics: [screenPageViews, sessions, totalUsers]
+  granularity: daily
+  freshness_ttl_minutes: 60
+  quality_checks:
+    not_null: [date, pagePath]
+    unique: [date, pagePath]
+
+
+- id: ga4_sessions_by_utm_daily
+  source: GA4
+  entity: sessions_utm
+  description: Sessões/usuários por UTM (source/medium/campaign) por dia.
+  dimensions: [date, source, medium, campaign]
+  metrics: [sessions, users]
+  granularity: daily
+  freshness_ttl_minutes: 60
+  quality_checks:
+    not_null: [date]
+
+- id: rd_email_campaign
+  source: RD
+  entity: email_campaign
+  description: Métricas de e-mail por campanha e data de envio.
+  dimensions: [date, campaignId]
+  metrics: [sends, opens, clicks]
+  granularity: daily
+  freshness_ttl_minutes: 120
+  quality_checks:
+    not_null: [date, campaignId]
+

@@ -1,0 +1,16 @@
+python-dotenv>=1.0.1
+streamlit>=1.36.0
+polars>=1.5.0
+duckdb>=1.1.0
+pydantic>=2.7.0
+pandera[polars]>=0.20.0
+google-analytics-data>=0.18.8
+google-auth>=2.31.0
+google-analytics-admin>=0.24.0
+tenacity>=8.2.3
+pyyaml>=6.0.1
+plotly>=5.23.0
+requests>=2.32.3
+google-auth-oauthlib>=1.2.0
+google-api-python-client>=2.137.0
+

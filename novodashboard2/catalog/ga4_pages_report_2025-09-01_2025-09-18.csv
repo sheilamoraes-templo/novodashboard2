@@ -1,0 +1,92 @@
+pagePath,pageTitle,screenPageViews,sessions,totalUsers
+/,Página inicial | Classplay,1740.0,888.0,603.0
+/course/view.php,"Seção: IA, Saúde Mental e Futuros do Trabalho | Masterclasses | Classplay",1308.0,688.0,524.0
+/mod/resource/view.php,"TUTORIAIS: Organizações Adaptáveis: Lean & Agile, Produtividade e Comunicação | Classplay",522.0,409.0,347.0
+/mod/aitools/view.php,Ferramentas | Classplay,418.0,70.0,58.0
+/course/modedit.php,Novo Área de texto e mídia | TEMPLO.FCA | Classplay,289.0,200.0,192.0
+/mod/aiprompts/view.php,Prompts | Classplay,248.0,109.0,92.0
+/admin/search.php,Search | Administration | Classplay,244.0,78.0,53.0
+/mod/aiagents/view.php,Agentes IA | Classplay,223.0,103.0,90.0
+/course/management.php,Gerenciamento de curso e categoria | Classplay,211.0,42.0,26.0
+/mod/aiagents/resource.php,Agentes IA | Classplay,205.0,151.0,121.0
+/course/edit.php,Erro | Classplay,117.0,34.0,22.0
+/user/index.php,casos-uso: Participantes | Classplay,102.0,74.0,71.0
+/mod/aiprompts/resource.php,Prompts | Classplay,83.0,55.0,49.0
+/enrol/index.php,casos-uso | Classplay,77.0,39.0,37.0
+/mod/aitools/resource.php,Ferramentas | Classplay,75.0,36.0,36.0
+/enrol/instances.php,Métodos de inscrição | Classplay,61.0,10.0,8.0
+/admin/settings.php,Parametrização de local | Local | Administração | Classplay,60.0,36.0,32.0
+/mod/forum/view.php,Avisos do site | Classplay,52.0,46.0,42.0
+/course/overview.php,Atividades do curso: Tutoriais | Classplay,43.0,33.0,31.0
+/admin/user.php,Lista de usuários | Contas | Usuários | Administração | Classplay,30.0,14.0,14.0
+/cohort/index.php,Todos os coortes | Classplay,30.0,18.0,16.0
+/report/log/index.php,MundoAgents : Logs: Página 2 | Classplay,24.0,10.0,9.0
+/local/profilecohort/index.php,Inscrição em coorte por campo de perfil | Classplay,23.0,7.0,5.0
+/course/editsection.php,Editar seção: Por que os Agentes IA mudam o paradigma da automação | MundoAgents | Classplay,22.0,12.0,12.0
+/admin/tool/installaddon/index.php,Instalar plugins | Plugins | Administração | Classplay,21.0,3.0,2.0
+/admin/roles/admins.php,Site administrators | Permissions | Users | Administration | Classplay,20.0,8.0,5.0
+/enrol/editinstance.php,Sincronização de coorte | Classplay,20.0,7.0,5.0
+/admin/index.php,Verificação de plugins | Classplay,18.0,8.0,7.0
+/course/switchrole.php,Switch role to... | Classplay,17.0,7.0,6.0
+/user/preferences.php,Preferências | Classplay,16.0,13.0,12.0
+/admin/tool/lp/coursecompetencies.php,Competências do curso | Classplay,16.0,14.0,14.0
+/grade/report/user/index.php,Relatório do usuário | Tutoriais de Ferramentas | Classplay,16.0,13.0,13.0
+/user/profile.php,Yuri Amorim: Perfil público | Classplay,16.0,12.0,12.0
+/conteudo/cursos/introducao-iag-no-mkt-digital/introduo-iag-no-marketing-digital,1. Introdução à IAG no Marketing Digital,16.0,14.0,14.0
+/mod/forum/discuss.php,Classplay: teste classplay | Classplay,13.0,7.0,7.0
+/user/editadvanced.php,Modificar perfil: Nelson de Souza Altino | | Classplay,12.0,9.0,9.0
+/report/view.php,Relatórios | Classplay,10.0,7.0,7.0
+/message/output/popup/notifications.php,Notificações | Classplay,9.0,9.0,9.0
+/admin/purgecaches.php,Purge caches | Development | Administration | Classplay,8.0,3.0,2.0
+/my/courses.php,Meus cursos | Classplay,8.0,5.0,5.0
+/user/view.php,Tutoriais de Ferramentas: Perfil pessoal: Ana Lucia Machado Carneiro | Classplay,7.0,5.0,5.0
+/reportbuilder/index.php,Relatórios personalizados | Construtor de relatórios | Relatórios | Administração | Classplay,6.0,5.0,4.0
+/cohort/edit.php,Acrescentar um coorte | Classplay,6.0,4.0,3.0
+/admin/tool/oauth2/issuers.php,Serviços OAuth 2 | Classplay,6.0,3.0,3.0
+/auth/oauth2/login.php,Erro | Classplay,6.0,5.0,5.0
+/admin/upgradesettings.php,Novas configurações | Administração | Classplay,5.0,2.0,2.0
+/local/profilecohort/cohorts.php,Inscrição em coorte por campo de perfil | Classplay,5.0,5.0,4.0
+/course/editcategory.php,Editar opções da categoria | Classplay,4.0,1.0,1.0
+/admin/tool/uploadcourse/index.php,Carregar cursos | Cursos | Administração | Classplay,4.0,2.0,2.0
+/admin/themeselector.php,Temas | Aparência | Administração | Classplay,4.0,4.0,4.0
+/mod/forum/post.php,Classplay: teste classplay: teste classplay | Classplay,3.0,2.0,2.0
+/admin/plugins.php,Visão geral dos Plugins | Plugins | Administração | Classplay,3.0,3.0,3.0
+/admin/tool/customlang/index.php,Personalização de idioma | Idioma | Administração | Classplay,3.0,1.0,1.0
+/grade/report/grader/index.php,Relatório de notas | Introdução à IA Generativa | Classplay,3.0,3.0,3.0
+/admin/roles/permissions.php,Permissões em Curso: Masterclasses | Classplay,3.0,3.0,3.0
+/admin/tool/customlang/edit.php,Personalização de idioma | Idioma | Administração | Classplay,2.0,2.0,1.0
+/course/index.php,Todos os cursos | Classplay,2.0,1.0,1.0
+/user/edit.php,Classplay: Modificar perfil | Classplay,2.0,2.0,2.0
+/admin/roles/assign.php,Papéis da página principal | Classplay,2.0,2.0,2.0
+/message/notificationpreferences.php,Preferências de notificação | Classplay,2.0,2.0,2.0
+/reportbuilder/customfield.php,Campos personalizados do relatório | Construtor de relatórios | Relatórios | Administração | Classplay,2.0,1.0,1.0
+/report/loglive/index.php,Classplay: Logs da última hora | Classplay,2.0,2.0,2.0
+/reportbuilder/view.php,teste | Classplay,2.0,3.0,3.0
+/admin/tool/oauth2/endpoints.php,Serviços OAuth 2 | Classplay,1.0,1.0,1.0
+/admin/tool/mfa/factor_report.php,Relatório de todos os fatores | Classplay,1.0,1.0,1.0
+/admin/tool/uploaduser/index.php,Carregar lista de usuários | Contas | Usuários | Administração | Classplay,1.0,2.0,2.0
+/question/banks.php,Bancos de questões | Classplay,1.0,1.0,1.0
+/contentbank/index.php,Banco de conteúdo | Classplay,1.0,1.0,1.0
+/report/usersessions/user.php,Sessões do navegador | Classplay,1.0,1.0,1.0
+/cohort/upload.php,Fazer upload de coortes | Classplay,1.0,1.0,1.0
+/user/calendar.php,Classplay: Preferências do calendário | Classplay,1.0,1.0,1.0
+/message/index.php,Mensagens | Classplay,1.0,1.0,1.0
+/backup/restorefile.php,Curso: Classplay | Classplay,1.0,1.0,1.0
+/mod/aiagents/index.php,Erro | Classplay,1.0,1.0,1.0
+/course/defaultcompletion.php,Conclusão de atividade padrão | Classplay,1.0,1.0,1.0
+/backup/view.php,Reutilizar curso | Classplay,1.0,1.0,1.0
+/reportbuilder/edit.php,teste | Classplay,1.0,1.0,1.0
+/cohort/customfield.php,Campos personalizados do Coorte | Contas | Usuários | Administração | Classplay,1.0,1.0,1.0
+/group/overview.php,Grupos | Classplay,1.0,1.0,1.0
+/Construa-Seu-Prompt-1655c644545480959699d20c9c02ce7c,Construa Seu Prompt,1.0,1.0,1.0
+/admin/tasklogs.php,Logs de tarefas | Tarefas | Servidor | Administração | Classplay,1.0,1.0,1.0
+/admin/tool/brickfield/registration.php,Formulário de registro | Classplay,1.0,1.0,1.0
+/admin/registration/index.php,Registrar com o Moodle.org | Administração | Classplay,1.0,1.0,1.0
+/login/logout.php,Sair | Classplay,1.0,1.0,1.0
+/admin/user/user_bulk.php,Ações em lote sobre usuários | Contas | Usuários | Administração | Classplay,1.0,1.0,1.0
+/turmas-templo,(not set),1.0,1.0,1.0
+/report/competency/index.php,Distribuição de competências | Classplay,1.0,1.0,1.0
+/admin/tool/dataprivacy/summary.php,Resumo da configuração do registro | Classplay,1.0,1.0,1.0
+/grade/report/overview/index.php,Relatório geral - Naiara Botelho Jardim | Biblioteca de Prompts | Classplay,1.0,1.0,1.0
+/backup/copyprogress.php,Progresso da cópia do curso | Classplay,1.0,1.0,1.0
+/report/outline/index.php,Classplay: Atividade do curso | Classplay,1.0,1.0,1.0

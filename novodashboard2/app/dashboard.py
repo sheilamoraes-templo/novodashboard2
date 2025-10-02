@@ -1,0 +1,352 @@
+import os
+import sys
+import streamlit as st
+
+# Garantir que o diretório raiz do projeto esteja no PYTHONPATH quando o Streamlit
+# executar a partir de app/dashboard.py
+CURRENT_DIR = os.path.dirname(__file__)
+ROOT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, os.pardir))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
+from datetime import date, timedelta
+
+from services.data_service import (
+    get_kpis,
+    get_top_pages,
+    get_pages_weekly_comparison,
+    get_video_funnel,
+    get_top_countries,
+    get_top_days,
+    get_health,
+    get_yt_channel_daily,
+    get_yt_top_videos,
+    get_engagement_kpis,
+    get_engagement_series,
+    get_utm_aggregate,
+    get_comms_sessions_by_campaign,
+    get_wow_comparatives,
+    get_mtd_vs_prev_month,
+    get_7_vs_28,
+    get_yt_retention_by_video,
+    get_pages_pareto,
+    get_rd_kpis,
+    get_comms_summary,
+    get_quality_signals,
+    get_yt_weekly_comparison,
+)
+import plotly.express as px
+from services.report_service import build_weekly_report
+from integrations.slack.client import SlackClient
+from services.ga4_refresh import (
+    refresh_sessions_last_n_days,
+    refresh_events_last_n_days,
+    refresh_pages_last_n_days,
+)
+from services.youtube_refresh import refresh_yt_channel_and_videos
+from configs.settings import get_settings
+
+
+st.set_page_config(page_title="CLASSPLAY Dashboard", layout="wide")
+
+
+def main() -> None:
+    st.title("CLASSPLAY Dashboard")
+    st.caption("GA4 primeiro; YouTube e RD preparados para integração")
+    settings = get_settings()
+
+    st.subheader("Período")
+    col1, col2 = st.columns(2)
+    with col1:
+        end = st.date_input("Fim", value=date.today())
+    with col2:
+        start = st.date_input("Início", value=date.today() - timedelta(days=7))
+    if start > end:
+        st.error("Data inicial maior que final")
+        return
+
+    start_s, end_s = start.isoformat(), end.isoformat()
+
+    st.header("KPIs Principais")
+    if settings.mock_mode:
+        st.info("MOCK_MODE ativo: atualização de GA4/YT desabilitada.")
+    else:
+        if st.button("Atualizar dados GA4 (últimos 30 dias)"):
+            try:
+                msgs = []
+                msgs.append(refresh_sessions_last_n_days(30))
+                msgs.append(refresh_events_last_n_days(30))
+                msgs.append(refresh_pages_last_n_days(30))
+                for m in msgs:
+                    st.success(m)
+            except Exception as e:
+                st.error(f"Falha ao atualizar GA4: {e}")
+
+    st.divider()
+
+    st.subheader("YouTube")
+    colyt1, colyt2 = st.columns(2)
+    with colyt1:
+        yt_days = st.number_input("Dias (YT)", min_value=7, max_value=60, value=30)
+    with colyt2:
+        if not settings.mock_mode and st.button("Atualizar YouTube (últimos N dias)"):
+            try:
+                msg = refresh_yt_channel_and_videos(int(yt_days))
+                st.success(msg)
+            except Exception as e:
+                st.error(f"Falha ao atualizar YouTube: {e}")
+
+    # Cards YouTube
+    st.header("YouTube — Evolução diária (views)")
+    try:
+        yt_daily = get_yt_channel_daily(start_s, end_s)
+        if yt_daily:
+            figy = px.line(yt_daily, x="date", y="views")
+            st.plotly_chart(figy, width="stretch")
+        else:
+            st.info("Sem dados diários do YouTube no período.")
+    except Exception as e:
+        st.warning(f"Falha ao carregar evolução YouTube: {e}")
+
+    st.header("YouTube — Top vídeos (views)")
+    try:
+        yt_top = get_yt_top_videos(start_s, end_s, 20)
+        if yt_top:
+            figt = px.bar(yt_top, x="views", y="videoId", orientation="h")
+            st.plotly_chart(figt, width="stretch")
+        else:
+            st.info("Sem dados de vídeos do YouTube no período.")
+    except Exception as e:
+        st.warning(f"Falha ao carregar Top vídeos YouTube: {e}")
+
+    st.subheader("YouTube — Comparação Semanal (últimas 8)")
+    try:
+        yt_weekly = get_yt_weekly_comparison(8)
+        if yt_weekly:
+            import pandas as pd
+            dfyw = pd.DataFrame(yt_weekly)
+            figy2 = px.bar(dfyw, x="year_week", y=["views", "minutes"], barmode="group")
+            st.plotly_chart(figy2, width="stretch")
+        else:
+            st.info("Sem dados semanais do YouTube.")
+    except Exception as e:
+        st.warning(f"Falha ao carregar comparação semanal de YouTube: {e}")
+
+    st.divider()
+    kpis = get_kpis(start_s, end_s)
+    eng = get_engagement_kpis(start_s, end_s)
+    k1, k2, k3, k4, k5 = st.columns(5)
+    k1.metric("Usuários", int(kpis.get("users", 0)))
+    k2.metric("Sessões", int(kpis.get("sessions", 0)))
+    k3.metric("Pageviews", int(kpis.get("pageviews", 0)))
+    k4.metric("Views (YT)", int(eng.get("views", 0)))
+    k5.metric("Minutos (YT)", int(eng.get("minutes", 0)))
+    # Comparativos WoW, MTD e 7v28
+    try:
+        wow = get_wow_comparatives(end_s)
+        mtd = get_mtd_vs_prev_month(end_s)
+        v7v28 = get_7_vs_28(end_s)
+        st.caption(
+            f"WoW – Sessões: {wow['sessions']['delta_pct']}% | Minutos: {wow['minutes']['delta_pct']}%  •  "
+            f"MTD vs M-1 – Sessões: {mtd['sessions']['delta_pct']}% | Minutos: {mtd['minutes']['delta_pct']}%  •  "
+            f"7v28 – Sessões: {v7v28['sessions']['delta_pct']}% | Minutos: {v7v28['minutes']['delta_pct']}%"
+        )
+    except Exception as e:
+        st.caption(f"Comparativos indisponíveis: {e}")
+
+    st.divider()
+    st.header("Top Páginas (Top 10)")
+    try:
+        pages = get_top_pages(start_s, end_s, 10)
+        if pages:
+            fig = px.bar(pages, x="pageviews", y="page_title", orientation="h")
+            st.plotly_chart(fig, width="stretch")
+        else:
+            st.info("Sem dados de páginas no período.")
+    except Exception as e:
+        st.warning(f"Falha ao carregar Top Páginas: {e}")
+
+    st.header("Comparação Semanal (últimas 8)")
+    try:
+        weekly = get_pages_weekly_comparison(8)
+        if weekly:
+            figw = px.bar(weekly, x="year_week", y="pageviews")
+            st.plotly_chart(figw, width="stretch")
+        else:
+            st.info("Sem dados semanais.")
+    except Exception as e:
+        st.warning(f"Falha ao carregar comparação semanal: {e}")
+
+    # Removido: Funil de Vídeos via GA4 (preferir métricas de retenção do YouTube, mais confiáveis)
+
+    st.divider()
+    st.header("Top Países")
+    try:
+        countries = get_top_countries(start_s, end_s, 10)
+        if countries:
+            figc = px.bar(countries, x="users", y="country_id", orientation="h")
+            st.plotly_chart(figc, width="stretch")
+        else:
+            st.info("Sem dados de países no período.")
+    except Exception as e:
+        st.warning(f"Falha ao carregar Top Países: {e}")
+
+    st.header("Top Dias da Semana")
+    try:
+        days = get_top_days(start_s, end_s)
+        if days:
+            figd = px.bar(days, x="weekday", y="users")
+            st.plotly_chart(figd, width="stretch")
+        else:
+            st.info("Sem dados por dia no período.")
+    except Exception as e:
+        st.warning(f"Falha ao carregar Top Dias: {e}")
+
+    st.divider()
+    st.header("Conteúdo & Retenção")
+    colc1, colc2 = st.columns(2)
+    with colc1:
+        try:
+            ret = get_yt_retention_by_video(start_s, end_s, 20)
+            if ret:
+                import pandas as pd
+                dfr = pd.DataFrame(ret)
+                dfr_display = dfr.copy()
+                dfr_display["min_per_view"] = dfr_display["min_per_view"].round(2)
+                st.dataframe(dfr_display, use_container_width=True, hide_index=True)
+            else:
+                st.info("Sem dados de retenção YT no período.")
+        except Exception as e:
+            st.warning(f"Falha na retenção YT: {e}")
+    with colc2:
+        try:
+            pareto = get_pages_pareto(start_s, end_s, 20)
+            if pareto:
+                import pandas as pd
+                dfp = pd.DataFrame(pareto)
+                figp = px.bar(dfp, x="pageviews", y="page_title", orientation="h")
+                st.plotly_chart(figp, width="stretch")
+            else:
+                st.info("Sem dados de páginas para Pareto no período.")
+        except Exception as e:
+            st.warning(f"Falha no Pareto de páginas: {e}")
+
+    # Aquisição & CRM (MVP)
+    st.divider()
+    st.header("Aquisição & CRM — UTM e Campanhas")
+    try:
+        utm = get_utm_aggregate(start_s, end_s, 20)
+        if utm:
+            import pandas as pd
+            dfu = pd.DataFrame(utm)
+            figu = px.bar(dfu, x="sessions", y="campaign", orientation="h")
+            st.plotly_chart(figu, width="stretch")
+            st.dataframe(dfu, use_container_width=True, hide_index=True)
+        else:
+            st.info("Sem dados UTM no período.")
+    except Exception as e:
+        st.warning(f"Falha ao carregar UTM: {e}")
+
+    try:
+        # KPIs RD (CTR/leads)
+        rd = get_rd_kpis(start_s, end_s)
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Sends", int(rd.get("sends", 0)))
+        c2.metric("Opens", int(rd.get("opens", 0)))
+        c3.metric("Clicks", int(rd.get("clicks", 0)))
+        c4.metric("CTR %", rd.get("ctr_pct", 0.0))
+
+        # Resumo D-1/D0/D0–D+2 por campanha
+        summary = get_comms_summary(10)
+        if summary:
+            import pandas as pd
+            dfs = pd.DataFrame(summary)
+            st.dataframe(dfs, use_container_width=True, hide_index=True)
+        else:
+            st.info("Sem resumo de impacto de campanhas (ver mapeamento UTM e dados RD).")
+    except Exception as e:
+        st.warning(f"Falha ao carregar impacto de campanhas: {e}")
+
+    st.divider()
+    st.header("Análise de Classes (/classes)")
+    st.caption("Em breve: filtro e ranking específico de páginas de classes.")
+
+    st.divider()
+    st.header("Informações dos Dados")
+    h = get_health()
+    st.json(h)
+    try:
+        qs = get_quality_signals()
+        st.caption(
+            f"Freshness — GA4(páginas): {qs['freshness'].get('ga4_pages_daily')} | GA4(eventos): {qs['freshness'].get('ga4_events_daily')} | "
+            f"GA4(UTM): {qs['freshness'].get('ga4_utm_daily')} | YT: {qs['freshness'].get('yt_video_daily')} | RD: {qs['freshness'].get('rd_email_campaign')}"
+        )
+        has_drop = qs['volumetry']['ses_dod_pct'] < -40.0 or qs['volumetry']['min_dod_pct'] < -40.0
+        if has_drop:
+            st.warning("Queda >40% dia contra dia detectada em Sessões/Minutos (verificar integrações ou sazonalidade).")
+        # Botão de alerta Slack
+        if st.button("Enviar alerta Slack (qualidade)"):
+            try:
+                issues = []
+                if has_drop:
+                    issues.append(
+                        f"Queda DoD: sessões {qs['volumetry']['ses_dod_pct']:.1f}% | minutos {qs['volumetry']['min_dod_pct']:.1f}%"
+                    )
+                freshness_txt = \
+                    f"Freshness => GA4 páginas: {qs['freshness'].get('ga4_pages_daily')}; " \
+                    f"GA4 eventos: {qs['freshness'].get('ga4_events_daily')}; GA4 UTM: {qs['freshness'].get('ga4_utm_daily')}; " \
+                    f"YT: {qs['freshness'].get('yt_video_daily')}; RD: {qs['freshness'].get('rd_email_campaign')}"
+                msg = "\n".join(["Alertas de Qualidade — CLASSPLAY", freshness_txt] + (issues or ["Sem violações críticas detectadas."]))
+                sc = SlackClient.from_env()
+                resp = sc.send_text(msg)
+                if resp.get("status_code") == 200:
+                    st.success("Alerta enviado ao Slack")
+                else:
+                    st.error(f"Falha ao enviar Slack: {resp}")
+            except Exception as e:
+                st.error(f"Erro no envio Slack: {e}")
+    except Exception:
+        pass
+    try:
+        if end == date.today():
+            st.info("Parcial hoje: os dados de hoje podem estar incompletos.")
+    except Exception:
+        pass
+
+    st.divider()
+    st.header("Envio de Relatório (Slack)")
+    top_n = st.number_input("Top N páginas", min_value=5, max_value=20, value=10)
+    try:
+        report_text = build_weekly_report(start_s, end_s, int(top_n))
+        st.text_area("Prévia do relatório", report_text, height=240)
+    except Exception as e:
+        st.warning(f"Falha ao montar prévia do relatório: {e}")
+    if st.button("Enviar para Slack"):
+        try:
+            sc = SlackClient.from_env()
+            resp = sc.send_text(report_text)
+            if resp.get("status_code") == 200:
+                st.success("Relatório enviado ao Slack")
+            else:
+                st.error(f"Falha ao enviar Slack: {resp}")
+        except Exception as e:
+            st.error(f"Erro no envio Slack: {e}")
+
+    st.divider()
+    st.header("Tendência combinada (Sessões × Minutos, últimos dias)")
+    try:
+        eng_series = get_engagement_series(start_s, end_s)
+        if eng_series:
+            import pandas as pd
+            df = pd.DataFrame(eng_series)
+            fig_combo = px.line(df, x="date", y=["sessions", "minutes"], labels={"value": "valor", "variable": "métrica"})
+            st.plotly_chart(fig_combo, width="stretch")
+        else:
+            st.info("Sem dados de engajamento no período.")
+    except Exception as e:
+        st.warning(f"Falha ao carregar tendência combinada: {e}")
+
+
+if __name__ == "__main__":
+    main()
+
+
